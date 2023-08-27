@@ -1,0 +1,222 @@
+---
+title: "Solution ABenzmane"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+## Task:
+The project's goal is to to predict the weekly sales for each physical store. First, we analyze historical sales information from 45 stores. Then, try to find a model that predict the response variable with a smallest RMSE. 
+
+Given that the response variable is continuous, the task at hand is a regression problem.
+
+## Librairies loading:
+
+
+```{r}
+library(utils)
+library(ggplot2)
+library(caret)
+library(dplyr)
+library(corrplot)
+library(glmnet)
+library(ranger)
+library(e1071)
+library(lubridate)
+```
+
+
+## Data loading:
+```{r}
+sales_csv= read.csv(file= "C:/Users/hp/Documents/stores_sales.csv" , header = T, sep = ",")
+```
+
+
+## Data cleaning / Exploration:
+
+```{r}
+# Transform the original data sales_csv to a data frame "sales_df"
+sales_data <- as.data.frame(sales_csv)
+# Add a "week" feature to the data frame sales_df 
+sales_data$date= as.Date(sales_data$date, format= "%d-%m-%Y")
+sales_data$week <- week(sales_data$date)
+```
+
+The week column in "sales_data" dataset contains the week number of the year.
+
+Now, we search if there is any missing value "NA" in the dataset:
+
+```{r}
+#Searching for missing values in the data to impute
+sum(is.na(sales_data))
+```
+
+We can easily remark from the results above that the dataset is clean. No missing values, no duplicates.
+
+Now, let's study the correlation between features: holiday_flag, temperature, fuel_Price, cpi, unemployment and week
+
+```{r}
+# Features' correlation study
+cor(sales_data[,4:ncol(sales_data)])
+```
+The resulted correlations are not too high. Let's look at correlation plot.
+
+## Data visualization:
+
+```{r}
+# correlation plot
+corrplot(cor(sales_data[,4:ncol(sales_data)])
+, method="circle")
+
+```
+The smaller clear blue and red dots support the comments we said before. There is no need for features removal for now as the features are not high correlated with each other.
+
+
+```{r}
+#Distribution of Variables
+par(mfrow=c(3,2))
+hist(sales_data$store, col = 'light blue', main = "stores")
+hist(sales_data$temperature, col = 'light blue', main = "temperature")
+hist(sales_data$fuel_Price, col = 'light blue', main = "fuel price")
+hist(sales_data$cpi, col = 'light blue', main = "CPI")
+hist(sales_data$unemployment, col = 'light blue', main = "unemployment")
+```
+
+From the graphs above, we can see that the variables: temperature, fuel price and unemployment all are fairly normally distributed.
+
+Now, let's look at the response variable (weekly_sales) distribution using an histogram plot:
+
+```{r}
+hist(sales_data$weekly_sales, col = 'pink', main = "Weekly sales", xlab = "weekly_sales")
+
+```
+ 
+
+## Modeling:
+
+
+Data splitting:
+
+First, we will remove the column date, the variable week is sufficient for the date information of the year. As it is located in the second column, we use the following line of code:
+
+```{r}
+sales_data= sales_data[,-2]
+```
+
+splitting: train set (80% of the data) and test set (20% of the data). 
+We may need to perform feature selection as a preliminary phase before making predictions because we do not know which features are relevant to the response variable (weekly_sales). Regularized regression and random forest could be utilized in the case of continuous response variables (regression problems), which is the case for this task, as both approaches simultaneously conduct selection and prediction. The three main types of regularized regression are elastic net, ridge, and LASSO regression.
+
+On the other hand, it would be beneficial to standardize the dataset to lessen the impact of different distributions. And normalize it to reduce the effect of different scales. This will provide algorithms that prefer data on the same scale (such some regression algorithms and instance-based approaches) a chance to succeed.
+
+Therefore, we begin by scalling the columns of the data except the store and week variables.
+
+```{r}
+sales_data[,-c(1,8)]= scale(sales_data[, -c(1,8)])
+```
+
+
+```{r}
+#Splitting into training and testing datasets
+train_rows <- sample(1:nrow(sales_data), .7*nrow(sales_data), 
+                     replace = F)
+x_train <- sales_data[train_rows,-2]
+y_train <- sales_data[train_rows,2]
+x_test <- sales_data[-train_rows,-2]
+y_test <- sales_data[-train_rows,2]
+
+
+train= as.data.frame(cbind(x_train,y_train))
+test= as.data.frame(cbind(x_test,y_test))
+
+```
+
+In the following, we will establish a performance baseline for this project and run distinct algorithms. We shall choose a variety of algorithms that can solve this regression problem.
+
+
+
+#LASSO regression
+
+LASSO or Least Absolute Shrinkage and Selection Operator is a regularized regression with l1 and l2 penalties. It performs prediction as well as feature selection. we try it on our problem to test its efficacy on predicting weekly sales of physical stores.
+
+
+
+```{r}
+x_LA <- model.matrix(y_train ~ . , data = train)[,-1]
+y_LA <- train$y_train
+LA_model <- cv.glmnet(x_LA, y_LA, alpha = 1)
+LA_pred <- predict(LA_model, s=LA_model$lambda.min,
+                   newx=as.matrix(x_test))
+rmse_LA <- sqrt(mean((y_test - as.vector(LA_pred))^2))
+print(paste("RMSE of the LASSO model:", rmse_LA))
+
+```
+
+
+# Random forest regressor:
+
+```{r}
+rf_model <- ranger(y_train ~ ., data = train)
+rf_pred <- predict(rf_model, data = test)
+rmse_rf <- sqrt(mean((y_test - rf_pred$predictions)^2))
+print(paste("RMSE of the random forest model:", rmse_rf))
+```
+
+
+# SVR or support vector machines model:
+
+```{r}
+svr_model <- svm(y_train ~ ., data = data.frame(train), kernel = "radial", cost = 1, epsilon = 0.1)
+
+# Predictions on the test set
+predictions <- predict(svr_model, newdata = data.frame(x_test))
+
+# RMSE
+rmse_svr <- sqrt(mean((y_test - predictions)^2))
+print(paste("RMSE of Support Vector Machines:", rmse_svr))
+```
+
+
+# KNN or k-Nearest Neighbors model:
+
+```{r}
+
+# Train the KNN regression model
+knn_model <- train(
+  x = x_train, y = y_train,
+  method = "knn", trControl = trainControl(method = "cv"),
+  tuneGrid = expand.grid(k = 1:10)
+)
+
+# Predict on the test set
+predictions <- predict(knn_model, newdata = data.frame(x_test))
+
+# Calculate RMSE
+rmse_knn <- sqrt(mean((y_test - predictions)^2))
+print(paste("RMSE of k-Nearest Neighbors:", rmse_knn))
+```
+
+# Gradient boosting:
+
+
+```{r, message=F}
+gb_model <- train(
+  x = x_train, y = y_train,
+  method = "gbm"
+)
+gb_predictions <- predict(gb_model, newdata = x_test)
+gb_rmse <- sqrt(mean((y_test - gb_predictions)^2))
+```
+
+```{r}
+print(paste("RMSE of Gradient Boosting:", gb_rmse))
+```
+
+
+## Conclusion:
+The aforementioned techniques performed well on the challenge and produced low RMSE values. The random forest regressor, which has shown to be effective in forecasting the weekly sales for physical stores with an RMSE of roughly 0.29, is the best model in this investigation. To see if accuracy is enhanced by flattening portions of the distributions, we may also try the Box-Cox transform. 
+
+
+
+
+
