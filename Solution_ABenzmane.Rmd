@@ -158,7 +158,7 @@ print(paste("RMSE of the LASSO model:", rmse_LA)) #[1] "RMSE of the LASSO model:
 rf_model <- ranger(y_train ~ ., data = train)
 rf_pred <- predict(rf_model, data = test)
 rmse_rf <- sqrt(mean((y_test - rf_pred$predictions)^2))
-print(paste("RMSE of the random forest model:", rmse_rf)) #[1] "RMSE of Support Vector Machines: 0.780932751712804"
+print(paste("RMSE of the random forest model:", rmse_rf)) #[1] "RMSE of the random forest model: 0.290484843618042"
 ```
 
 
