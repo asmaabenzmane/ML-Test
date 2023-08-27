@@ -148,8 +148,7 @@ LA_model <- cv.glmnet(x_LA, y_LA, alpha = 1)
 LA_pred <- predict(LA_model, s=LA_model$lambda.min,
                    newx=as.matrix(x_test))
 rmse_LA <- sqrt(mean((y_test - as.vector(LA_pred))^2))
-print(paste("RMSE of the LASSO model:", rmse_LA))
-
+print(paste("RMSE of the LASSO model:", rmse_LA)) #[1] "RMSE of the LASSO model: 0.905032455531763"
 ```
 
 
@@ -159,7 +158,7 @@ print(paste("RMSE of the LASSO model:", rmse_LA))
 rf_model <- ranger(y_train ~ ., data = train)
 rf_pred <- predict(rf_model, data = test)
 rmse_rf <- sqrt(mean((y_test - rf_pred$predictions)^2))
-print(paste("RMSE of the random forest model:", rmse_rf))
+print(paste("RMSE of the random forest model:", rmse_rf)) #[1] "RMSE of Support Vector Machines: 0.780932751712804"
 ```
 
 
@@ -173,7 +172,8 @@ predictions <- predict(svr_model, newdata = data.frame(x_test))
 
 # RMSE
 rmse_svr <- sqrt(mean((y_test - predictions)^2))
-print(paste("RMSE of Support Vector Machines:", rmse_svr))
+print(paste("RMSE of Support Vector Machines:", rmse_svr)) #[1] "RMSE of Support Vector Machines: 0.780932751712804"
+
 ```
 
 
@@ -193,7 +193,7 @@ predictions <- predict(knn_model, newdata = data.frame(x_test))
 
 # Calculate RMSE
 rmse_knn <- sqrt(mean((y_test - predictions)^2))
-print(paste("RMSE of k-Nearest Neighbors:", rmse_knn))
+print(paste("RMSE of k-Nearest Neighbors:", rmse_knn)) #[1] "RMSE of k-Nearest Neighbors: 0.478358548836788"
 ```
 
 # Gradient boosting:
@@ -209,7 +209,7 @@ gb_rmse <- sqrt(mean((y_test - gb_predictions)^2))
 ```
 
 ```{r}
-print(paste("RMSE of Gradient Boosting:", gb_rmse))
+print(paste("RMSE of Gradient Boosting:", gb_rmse)) #[1] "RMSE of Gradient Boosting: 0.387136260298013"
 ```
 
 
